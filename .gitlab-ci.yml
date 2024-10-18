@@ -1,0 +1,52 @@
+image: node:14
+
+stages:
+  - build
+  - deploy
+  - rollback
+
+before_script:
+  - sudo su
+  - sudo apt-get update && sudo apt-get install -y ssh
+  - sudo mkdir -p ~/.ssh
+  - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+  - sudo chmod 600 ~/.ssh/id_rsa
+  - ssh-keyscan -H $DEPLOY_HOST >> ~/.ssh/known_hosts
+
+build_frontend:
+  stage: build
+  script:
+    - cd frontend
+    - sudo npm install
+    - sudo npm run build
+  artifacts:
+    paths:
+      - frontend/build/
+
+build_backend:
+  stage: build
+  script:
+    - cd backend
+    - sudo npm install
+    - sudo npm run build
+  artifacts:
+    paths:
+      - backend/build/
+
+deploy:
+  stage: deploy
+  script:
+    - ssh $DEPLOY_USER@$DEPLOY_HOST "mkdir -p $FRONTEND_PATH/current && mkdir -p $BACKEND_PATH/current"
+    - ssh $DEPLOY_USER@$DEPLOY_HOST "mv $FRONTEND_PATH/current $FRONTEND_PATH/previous || true"
+    - scp -r frontend/build/* $DEPLOY_USER@$DEPLOY_HOST:$FRONTEND_PATH/current/
+    - ssh $DEPLOY_USER@$DEPLOY_HOST "mv $BACKEND_PATH/current $BACKEND_PATH/previous || true"
+    - scp -r backend/build/* $DEPLOY_USER@$DEPLOY_HOST:$BACKEND_PATH/current/
+  environment:
+    name: production
+    url: http://34.207.198.26
+
+rollback:
+  stage: rollback
+  script:
+    - ssh $DEPLOY_USER@$DEPLOY_HOST "sudo mv $FRONTEND_PATH/current $FRONTEND_PATH/previous && sudo mv $FRONTEND_PATH/previous $FRONTEND_PATH/current"
+    - ssh $DEPLOY_USER@$DEPLOY_HOST "sudo mv $BACKEND_PATH/current $BACKEND_PATH/previous && sudo mv $BACKEND_PATH/previous $BACKEND_PATH/current"
