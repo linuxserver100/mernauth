@@ -1,0 +1,1 @@
+aAbove code .yml file will work only in gitlab befor pushing it to git lab make sure to first copy above codes to your server and then install nodemodule files and then push it to gitlab for next steps 
